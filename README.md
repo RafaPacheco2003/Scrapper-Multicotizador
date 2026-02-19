@@ -1,3 +1,7 @@
+source .venv/bin/activate
+uvicorn main:app --reload --host 0.0.0.0 --port 8001
+
+
 # Echo API - FastAPI Application con Web Scraping
 
 API Echo para recibir y procesar datos de vehículos desde Kafka con arquitectura limpia siguiendo mejores prácticas de FastAPI y SOLID principles. Incluye sistema de web scraping modular para múltiples aseguradoras.
@@ -171,133 +175,190 @@ Con esto, **Cloudflare creerá que es usuario real y NO bloqueará** ✅
 
 ```
 .
-├── app/
-│   ├── __init__.py              # Inicialización del paquete
-│   ├── main.py                  # Aplicación principal FastAPI
-│   ├── config.py                # Configuración centralizada
-│   ├── schemas.py               # Modelos Pydantic
+├── main.py                      # Aplicación principal FastAPI
+├── src/
+│   ├── core/
+│   │   ├── config.py            # Configuración centralizada
+│   │   └── database.py          # Conexión a PostgreSQL
+│   ├── schemas/
+│   │   ├── QuotationDetail.py  # Modelo de respuesta Quotation
+│   │   └── request_schemas.py  # Modelos de request
+│   ├── repositories/
+│   │   └── quotation_repository.py  # Queries a base de datos
+│   ├── services/
+│   │   ├── quotation_service.py     # Lógica de negocio Quotation
+│   │   ├── scraper_service.py       # Orquestador de scrapers (OCP)
+│   │   ├── chrome_driver.py         # Gestor Chrome WebDriver
+│   │   ├── logger.py                # Logger visual scraping
+│   │   ├── interfaces.py            # Interfaces SOLID (ABC)
+│   │   └── extendScrapers/          # Estrategias por scraper (OCP)
+│   │       ├── __init__.py          # ScraperStrategy base
+│   │       ├── scraper_mapfre.py    # Estrategia Mapfre
+│   │       └── scraper_hdi.py       # Estrategia HDI
 │   ├── api/
-│   │   ├── __init__.py
-│   │   └── routes.py            # Endpoints de la API
-│   └── services/
-│       ├── __init__.py
-│       ├── vehicle_service.py   # Lógica de negocio
-│       ├── scraper_service.py   # Orquestador de scrapers
-│       ├── scraper_factory.py   # Factory pattern para scrapers
-│       ├── chrome_driver.py     # Gestor de Chrome WebDriver
-│       ├── logger.py            # Logger visual para scraping
-│       ├── interfaces.py        # Interfaces SOLID (ABC)
-│       └── scrapers/            # Scrapers modulares por aseguradora
-│           ├── __init__.py
-│           ├── README_TEMPLATE.py
-│           └── hdi/             # Scraper HDI Seguros
-│               ├── __init__.py
-│               ├── hdi_scraper.py          # Orquestador HDI
-│               ├── hdi_page_navigator.py   # Navegación de páginas
-│               ├── hdi_brand_handler.py    # Manejo de marca
-│               ├── hdi_year_handler.py     # Manejo de año
-│               └── hdi_data_extractor.py   # Extracción de datos
+│   │   └── endpoints/
+│   │       ├── __init__.py          # Router principal
+│   │       ├── heald_router.py      # Health check & DB
+│   │       ├── quotation_router.py  # Quotation endpoints
+│   │       └── scraper_router.py    # Scraper endpoints
+│   └── kafka/
+│       └── kafka_consumer.py        # Consumer de eventos NestJS
+├── scrapers/
+│   └── implementations/
+│       ├── mapfre_scraper.py        # Scraper Mapfre (Cloudflare bypass)
+│       └── hdi_scraper.py           # Scraper HDI
 ├── utils/
-│   ├── __init__.py
-│   ├── helpers.py               # Utilidades generales
-│   └── logging_config.py        # Configuración de logging
-├── .env.example                 # Ejemplo de variables de entorno
-├── requirements.txt             # Dependencias
-└── README.md                    # Este archivo
+│   ├── helpers.py                   # Utilidades generales
+│   └── logging_config.py            # Configuración logging
+├── requirements.txt                 # Dependencias Python
+├── .env                             # Variables de entorno
+└── README.md                        # Este archivo
 ```
 
 ## 📋 Características
 
-- ✅ **Arquitectura en capas**: Separación clara entre rutas, servicios y modelos
-- ✅ **SOLID Principles**: Código modular, escalable y mantenible
-- ✅ **Web Scraping Modular**: Scrapers independientes por aseguradora
-- ✅ **Factory Pattern**: Creación dinámica de scrapers
-- ✅ **Selenium Integration**: Automatización de navegador Chrome
-- ✅ **Configuración centralizada**: Usando Pydantic Settings
-- ✅ **Validación de datos**: Schemas con Pydantic y Field validators
+- ✅ **Arquitectura en capas**: Router → Service → Repository
+- ✅ **SOLID Principles - Open/Closed**: Scrapers extensibles sin modificar código base
+- ✅ **Dependency Injection**: Constructor-based DI (db flows through layers)
+- ✅ **Web Scraping con Cloudflare Bypass**: Chrome 144 + tracking permitido
+- ✅ **Strategy Pattern**: Scrapers con estrategias independientes (Mapfre/HDI)
+- ✅ **Selenium Integration**: Chrome WebDriver con configuración anti-detección
+- ✅ **PostgreSQL Integration**: SQLAlchemy 2.0 + Pydantic V2
+- ✅ **Kafka Consumer**: Recibe eventos de productor NestJS
+- ✅ **Type-safe Returns**: QuotationDetail con validación Pydantic
+- ✅ **Health Endpoints**: Database connection check
+- ✅ **Configuración centralizada**: Pydantic Settings con .env
 - ✅ **Documentación automática**: OpenAPI/Swagger integrado
-- ✅ **Manejo de errores**: HTTPExceptions estructuradas
-- ✅ **Logging visual**: Sistema de logging con formato visual para scraping
-- ✅ **CORS**: Configuración flexible de CORS
-- ✅ **Health check**: Endpoint de salud del servicio
+- ✅ **Logging visual**: Sistema de logging para scraping
+- ✅ **CORS**: Configuración flexible
 
-## 🚀 Instalación
+## 🚀 Instalación y Arranque
 
-### 1. Crear entorno virtual
+### 1. Clonar repositorio
 ```bash
-python -m venv venv
-source venv/bin/activate  # En Windows: venv\Scripts\activate
+git clone <repo-url>
+cd Scrapping
 ```
 
-### 2. Instalar dependencias
+### 2. Crear y activar entorno virtual
+```bash
+python3.14 -m venv .venv
+source .venv/bin/activate  # macOS/Linux
+# o
+.venv\Scripts\activate  # Windows
+```
+
+### 3. Instalar dependencias
 ```bash
 pip install -r requirements.txt
 ```
 
-### 3. Configurar variables de entorno
+### 4. Configurar variables de entorno
 ```bash
-cp .env.example .env
-# Editar .env según necesidades
+# Crear archivo .env con:
+DATABASE_URL=postgresql://cotiza360_user:tu_password_seguro@localhost:5432/cotiza360_db
+APP_NAME=Echo API - Cotiza360
+APP_VERSION=1.0.0
+HOST=0.0.0.0
+PORT=8001
+DEBUG=true
+LOG_LEVEL=INFO
+```
+
+### 5. Asegurar que Docker esté corriendo
+```bash
+# Kafka debe estar en localhost:9092
+docker ps | grep kafka-cotiza360
+
+# PostgreSQL debe estar en localhost:5432
+docker ps | grep postgres-cotiza360
+```
+
+### 6. Arrancar el sistema
+```bash
+uvicorn main:app --reload --host 0.0.0.0 --port 8001
+```
+
+### 7. Verificar que todo funcione
+```
+✅ Deberías ver en consola:
+- INFO: Uvicorn running on http://0.0.0.0:8001
+- 🚀 Iniciando Kafka consumer en background...
+- ✅ Kafka consumer conectado a localhost:9092
+- 📡 Topic: quotations-created | Group: fastapi-quotation-group
+```
+
+### 8. Probar endpoints
+```bash
+# Health check
+curl http://localhost:8001/health/database
+
+# Quotation (reemplaza {uuid} con ID real)
+curl http://localhost:8001/api/v1/quotations/{uuid}
+
+# Scraper Mapfre
+curl "http://localhost:8001/api/v1/scrapers/scrape/mapfre?marca=NISSAN&submarca=VERSA&year=2024&codigo=12345&fecha=2024-01-01&genero=M"
 ```
 
 ## ▶️ Ejecución
 
-### Modo desarrollo (con auto-reload)
+### 1. Activar entorno virtual
 ```bash
-python -m app.main
+source .venv/bin/activate  # En macOS/Linux
+# o
+.venv\Scripts\activate  # En Windows
 ```
 
-### Usando uvicorn directamente
+### 2. Iniciar FastAPI en modo desarrollo (con auto-reload)
 ```bash
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+uvicorn main:app --reload --host 0.0.0.0 --port 8001
 ```
+
+### 3. Verificar que el servicio esté corriendo
+```bash
+# El servidor debería mostrar:
+# ✅ Kafka consumer conectado a localhost:9092
+# 📡 Topic: quotations-created | Group: fastapi-quotation-group
+# INFO: Uvicorn running on http://0.0.0.0:8001
+```
+
+### 4. Acceder a la documentación
+- **Swagger UI**: http://localhost:8001/docs
+- **ReDoc**: http://localhost:8001/redoc
 
 ## 📚 Documentación API
 
 Una vez iniciado el servidor, accede a:
 
-- **Swagger UI**: http://localhost:8000/docs
-- **ReDoc**: http://localhost:8000/redoc
-- **OpenAPI JSON**: http://localhost:8000/openapi.json
+- **Swagger UI**: http://localhost:8001/docs
+- **ReDoc**: http://localhost:8001/redoc
+- **OpenAPI JSON**: http://localhost:8001/openapi.json
 
-## 🔌 Endpoints
+## 🔌 Endpoints Principales
 
 ### Health Check
 ```http
-GET /health
+GET /health/database
 ```
-Verifica el estado del servicio
+Verifica conexión con PostgreSQL
 
-### Root
+### Quotation (Consultar cotización)
 ```http
-GET /
+GET /api/v1/quotations/{quotation_id}
 ```
-Información general de la API
+Retorna detalles de cotización con joins (Branch, Model, Description)
 
-### Echo (Procesar datos de vehículos)
+### Scraper Mapfre
 ```http
-POST /api/v1/echo
-Content-Type: application/json
-
-{
-  "data": {
-    "id": "vehicle_001",
-    "year": 2024,
-    "branch": {
-      "id": "brand_001",
-      "name": "Toyota"
-    },
-    "model": {
-      "id": "model_001",
-      "name": "Corolla"
-    },
-    "description": {
-      "id": "desc_001",
-      "name": "Sedán 4 puertas"
-    }
-  }
-}
+GET /api/v1/scrapers/scrape/mapfre?marca=NISSAN&submarca=VERSA&year=2024&codigo=12345&fecha=2024-01-01&genero=M
 ```
+Ejecuta scraper de Mapfre con Cloudflare bypass
+
+### Scraper HDI
+```http
+GET /api/v1/scrapers/scrape/hdi
+```
+Ejecuta scraper de HDI (acceso directo)
 
 ## 🏛️ Arquitectura
 

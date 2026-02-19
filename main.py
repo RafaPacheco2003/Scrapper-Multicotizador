@@ -4,10 +4,12 @@ Aplicación FastAPI principal
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import logging
+import threading
 from src.core.config import settings
 from src.api.endpoints import router
 from src.api.endpoints.heald_router import router as health_router
-from src.api.endpoints.quotation_router import router as quotation_router  
+from src.api.endpoints.quotation_router import router as quotation_router
+from src.kafka.kafka_consumer import start_consumer  
 
 
 # Configurar logging
@@ -39,6 +41,15 @@ app.add_middleware(
 app.include_router(router)
 app.include_router(health_router)
 app.include_router(quotation_router)
+
+
+@app.on_event("startup")
+async def startup_event():
+    logger.info("🚀 Iniciando Kafka consumer en background...")
+    consumer_thread = threading.Thread(target=start_consumer, daemon=True)
+    consumer_thread.start()
+    logger.info("✅ Thread de Kafka consumer iniciado")
+    logger.info("📬 Esperando eventos del productor NestJS...")
 
 
 if __name__ == "__main__":

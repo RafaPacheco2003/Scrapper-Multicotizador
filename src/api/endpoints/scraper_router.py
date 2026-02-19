@@ -85,3 +85,47 @@ async def health_check():
         "service": "Web Scraping Backend",
         "timestamp": datetime.now().isoformat()
     }
+
+
+@router.get(
+    "/scrape/hdi",
+    response_model=ScrapeResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Scraping HDI",
+    description="Endpoint para acceder a la página de HDI"
+)
+async def scrape_hdi() -> ScrapeResponse:
+    """
+    Endpoint GET para probar scraping de HDI
+    
+    Accede a: https://www.hdiconnect.com.mx/productos/autos
+    """
+    try:
+        # Realizar scraping de HDI (sin parámetros, solo accede a la página)
+        result = await scraper_service.scrape(
+            scraper_name="hdi",
+            params={},
+            extract_data=True
+        )
+        
+        # Convertir a response schema
+        return ScrapeResponse(
+            success=result["success"],
+            message=result["message"],
+            scraper_name=result["scraper_name"],
+            url=result.get("url"),
+            data=result.get("data"),
+            error=result.get("error"),
+            timestamp=datetime.now()
+        )
+        
+    except AppException as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=e.message
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error interno: {str(e)}"
+        )

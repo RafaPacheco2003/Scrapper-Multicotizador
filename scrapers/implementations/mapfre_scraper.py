@@ -1,15 +1,17 @@
 # Scraper para Mapfre México con bypass de Cloudflare
-# ESTRATEGIA: User-Agent Chrome 144 real + permitir tracking de Datadog/Analytics + acceso natural
+# ESTRATEGIA: undetected-chromedriver + comportamiento humano + verificación dinámica
 
 import logging
 from typing import Dict, Any
-from selenium import webdriver
+import undetected_chromedriver as uc
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.action_chains import ActionChains
 from bs4 import BeautifulSoup
 from scrapers.base import BaseScraper
 import time
+import random
 
 logger = logging.getLogger(__name__)
 
@@ -17,167 +19,124 @@ logger = logging.getLogger(__name__)
 class MapfreScraper(BaseScraper):
     
     def __init__(self, debug: bool = False, wait_time: int = 0):
+        
         super().__init__(name="mapfre")
         self.base_url = "https://cotizadorautos.mapfre.com.mx"
         self.timeout = 15
         self.debug = debug
         self.wait_time = wait_time
     
+    
+    
     async def scrape(self, url: str) -> Dict[str, Any]:
         driver = None
         try:
-            self.logger.info("Iniciando scraping con Chrome 144...")
+            self.logger.info("🚀 Iniciando scraping con undetected-chromedriver...")
             
-            # PASO 1: Configurar Chrome para pasar Cloudflare
-            options = webdriver.ChromeOptions()
+            # PASO 1: Configurar Chrome con undetected-chromedriver
+            # undetected-chromedriver automáticamente bypasea muchas detecciones
+            options = uc.ChromeOptions()
             
-            # Opciones básicas de Chrome
+            # Opciones básicas
             options.add_argument('--no-sandbox')
             options.add_argument('--disable-dev-shm-usage')
-            options.add_argument('--disable-blink-features=AutomationControlled')
             options.add_argument('--start-maximized')
-            options.add_argument('--disable-extensions')
-            options.add_argument('--disable-gpu')
+            options.add_argument('--disable-blink-features=AutomationControlled')
             
-            # CRITICO: User-Agent debe ser versión REAL de Chrome en 2026
-            # Cloudflare verifica que la versión exista
-            options.add_argument(
-                'user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) '
-                'AppleWebKit/537.36 (KHTML, like Gecko) '
-                'Chrome/144.0.7559.97 Safari/537.36'
-            )
+            # Idioma y región
+            options.add_argument('--lang=es-MX')
+            options.add_argument('--accept-lang=es-MX,es;q=0.9')
             
-            # CRITICO: Idioma debe coincidir con User-Agent
-            # Si hay mismatch, Cloudflare detecta como bot
-            options.add_argument('--lang=es-GB')
-            options.add_argument('--accept-lang=es-GB,es-MX,es;q=0.9')
+            # Crear driver con undetected-chromedriver (auto-detecta versión)
+            driver = uc.Chrome(options=options, use_subprocess=False)
+            self.logger.info("Chrome iniciado con undetected-chromedriver")
             
-            # CRITICO: Permitir scripts de tracking (Datadog, Google Analytics)
-            # Cloudflare espera ver estas peticiones para confirmar que es usuario real
-            options.add_argument('--allow-running-insecure-content')
-            
-            # Ocultar que estamos usando Selenium
-            options.add_experimental_option("excludeSwitches", ["enable-automation"])
-            options.add_experimental_option('useAutomationExtension', False)
-            
-            driver = webdriver.Chrome(options=options)
-            self.logger.info("Chrome iniciado correctamente")
-            
-            # PASO 2: Ocultar propiedades de Selenium con JavaScript
-            # Esto evita que Cloudflare detecte que estamos automatizando
-            driver.execute_script(
-                "Object.defineProperty(navigator, 'webdriver', {get: () => false});"
-            )
-            
-            driver.execute_script("""
-            Object.defineProperty(navigator, 'languages', {
-                get: () => ['es-GB', 'es-MX', 'es']
-            });
-            Object.defineProperty(navigator, 'language', {
-                get: () => 'es-GB'
-            });
-            """)
-            
-            self.logger.info("Propiedades de navegador ocultadas")
-            
-            # PASO 3: Acceso NATURAL a la página (simular comportamiento humano)
-            # NO ir directo a la URL completa - eso activa Cloudflare
-            # Primero ir a la página base, esperar, luego ir a la URL completa
-            
-            self.logger.info("Accediendo a página base...")
+            # PASO 2: Acceso NATURAL y progresivo
+            self.logger.info("🌐 Accediendo a página base...")
             driver.get(self.base_url)
-            time.sleep(2)  # Esperar como lo haría un humano
             
-            self.logger.info("Esperando antes de continuar...")
-            time.sleep(3)  # Comportamiento humano: leer, pensar
+            # Simular comportamiento humano: movimiento del mouse y scroll
+            self._simulate_human_behavior(driver)
+            time.sleep(random.uniform(2, 4))
             
-            self.logger.info("Accediendo a URL con parámetros...")
+            self.logger.info("🔄 Navegando a URL con parámetros...")
             driver.get(url)
-            time.sleep(1)
+            time.sleep(random.uniform(1, 2))
             
-            # PASO 4: Esperar a que cargue la página
-            self.logger.info("Esperando carga de página...")
+            # PASO 3: Esperar carga inicial
             WebDriverWait(driver, 15).until(
                 EC.presence_of_element_located((By.TAG_NAME, "body"))
             )
             
-            # PASO 5: Esperar a que scripts de tracking se carguen
-            # Cloudflare verifica que se carguen Datadog, Google Analytics, etc.
-            # Si no se cargan, detecta como bot
-            self.logger.info("Esperando scripts de tracking (Datadog, Analytics)...")
-            time.sleep(5)
+            # PASO 4: VERIFICAR Y ESPERAR CLOUDFLARE DINÁMICAMENTE
+            cloudflare_passed = self._check_and_wait_for_cloudflare(driver)
             
-            html = driver.page_source
-            self.logger.info(f"HTML obtenido: {len(html)} caracteres")
+            if not cloudflare_passed:
+                self.logger.error(" No se pudo pasar Cloudflare después de múltiples intentos")
+                raise Exception("Cloudflare Challenge no pudo ser resuelto")
             
-            # PASO 6: Verificar si Cloudflare aparece (por si acaso)
-            if "cloudflare" in html.lower() or "turnstile" in html.lower():
-                self.logger.warning("Cloudflare Turnstile detectado, esperando...")
-                time.sleep(10)  # Esperar a que se resuelva automáticamente
-                html = driver.page_source
+            self.logger.info("Cloudflare pasado exitosamente")
+            self.logger.info("Cloudflare pasado exitosamente")
             
-            self.logger.info("Cloudflare pasado correctamente")
+            # Simular comportamiento humano después de pasar Cloudflare
+            self._simulate_human_behavior(driver)
+            time.sleep(random.uniform(1, 2))
             
-            # PASO 7: Rellenar formulario de contacto
-            # Esperar entre cada campo para simular comportamiento humano
+            # PASO 5: Rellenar formulario de contacto con comportamiento humano
+            self.logger.info("Rellenando formulario de contacto...")
             
             # Campo 1: Nombre
             try:
                 name_input = WebDriverWait(driver, 10).until(
                     EC.presence_of_element_located((By.ID, "contact-name"))
                 )
-                name_input.click()
-                time.sleep(0.5)
-                name_input.send_keys("Juan Pérez")
-                time.sleep(1)
+                self._human_type(driver, name_input, "Juan Pérez")
                 self.logger.info("Nombre ingresado")
             except Exception as e:
                 self.logger.warning(f"No se pudo rellenar nombre: {str(e)}")
             
-            time.sleep(1)
+            time.sleep(random.uniform(0.8, 1.5))
             
             # Campo 2: Email
             try:
                 email_input = WebDriverWait(driver, 10).until(
                     EC.presence_of_element_located((By.ID, "contact-email"))
                 )
-                email_input.click()
-                time.sleep(0.5)
-                email_input.send_keys("juan.perez2024@gmail.com")
-                time.sleep(1)
+                self._human_type(driver, email_input, "juan.perez2024@gmail.com")
                 self.logger.info("Email ingresado")
             except Exception as e:
                 self.logger.warning(f"No se pudo rellenar email: {str(e)}")
             
-            time.sleep(1)
+            time.sleep(random.uniform(0.8, 1.5))
             
             # Campo 3: Teléfono
             try:
                 phone_input = WebDriverWait(driver, 10).until(
                     EC.presence_of_element_located((By.ID, "contact-phone"))
                 )
-                phone_input.click()
-                time.sleep(0.5)
-                phone_input.send_keys("9991234567")
-                time.sleep(1)
+                self._human_type(driver, phone_input, "9991234567")
                 self.logger.info("Teléfono ingresado")
             except Exception as e:
                 self.logger.warning(f"No se pudo rellenar teléfono: {str(e)}")
             
-            time.sleep(2)
+            time.sleep(random.uniform(1.5, 2.5))
             
-            # PASO 8: Hacer click en botón "Continuar"
+            # PASO 6: Click en botón Continuar
             self.logger.info("Haciendo click en botón Continuar...")
             try:
                 continue_button = WebDriverWait(driver, 10).until(
                     EC.element_to_be_clickable((By.ID, "confirm-usercontact-button"))
                 )
-                continue_button.click()
+                
+                # Mover mouse al botón antes de clickear (comportamiento humano)
+                actions = ActionChains(driver)
+                actions.move_to_element(continue_button).pause(random.uniform(0.3, 0.7)).click().perform()
+                
                 self.logger.info("Botón clickeado")
                 
-                # Esperar a que cargue la siguiente página
+                # Esperar carga de página siguiente
                 self.logger.info("Esperando carga de página siguiente...")
-                time.sleep(5)
+                time.sleep(random.uniform(3, 5))
                 
                 WebDriverWait(driver, 15).until(
                     EC.presence_of_element_located((By.TAG_NAME, "body"))
@@ -188,9 +147,10 @@ class MapfreScraper(BaseScraper):
                 self.logger.error(f"Error al clickear botón: {str(e)}")
                 raise
             
-            # PASO 9: Extraer datos de la página
+            # PASO 7: Extraer datos de la página
+            html = driver.page_source
             data = self.parse_response(html)
-            self.logger.info("Scraping completado")
+            self.logger.info("Scraping completado exitosamente")
             
             # Modo debug: mantener navegador abierto
             if self.debug and self.wait_time > 0:
@@ -210,6 +170,76 @@ class MapfreScraper(BaseScraper):
                     self.logger.info("Chrome cerrado")
                 except:
                     pass
+    
+    def _check_and_wait_for_cloudflare(self, driver, max_attempts: int = 30) -> bool:
+        """
+        Verifica si Cloudflare está presente y espera hasta que se resuelva.
+        Retorna True si pasó, False si no pudo pasar.
+        """
+        self.logger.info("Verificando presencia de Cloudflare...")
+        
+        for attempt in range(max_attempts):
+            try:
+                # PRIMERO: Verificar si el formulario YA está presente (Cloudflare ya pasó)
+                try:
+                    driver.find_element(By.ID, "contact-name")
+                    self.logger.info("Formulario detectado - Cloudflare pasado")
+                    return True
+                except:
+                    pass  # Formulario no encontrado, continuar verificando
+                
+                # SEGUNDO: Solo si NO hay formulario, verificar si Cloudflare está activo
+                html = driver.page_source.lower()
+                
+                # Verificar SOLO indicadores ACTIVOS de Cloudflare challenge
+                active_challenge_indicators = [
+                    "just a moment" in html,  # Mensaje activo del challenge
+                    "checking your browser" in html,  # Verificación en proceso
+                    "<title>just a moment...</title>" in html  # Title del challenge
+                ]
+                
+                if any(active_challenge_indicators):
+                    self.logger.warning(f"Cloudflare challenge activo (intento {attempt + 1}/{max_attempts}), esperando...")
+                    time.sleep(3)  # Esperar más tiempo para que se resuelva
+                    continue
+                
+                # Si no hay challenge activo pero tampoco formulario, esperar un poco más
+                self.logger.info(f"Esperando carga completa (intento {attempt + 1}/{max_attempts})...")
+                time.sleep(2)
+                    
+            except Exception as e:
+                self.logger.debug(f"Error en verificación: {str(e)}")
+                time.sleep(2)
+                continue
+        
+        self.logger.error("No se pudo pasar Cloudflare después de múltiples intentos")
+        return False
+    
+    def _simulate_human_behavior(self, driver):
+        """Simula comportamiento humano: scroll aleatorio y movimientos"""
+        try:
+            # Scroll aleatorio
+            scroll_amount = random.randint(100, 500)
+            driver.execute_script(f"window.scrollBy(0, {scroll_amount});")
+            time.sleep(random.uniform(0.3, 0.7))
+            
+            # Scroll de vuelta
+            driver.execute_script(f"window.scrollBy(0, -{scroll_amount // 2});")
+            time.sleep(random.uniform(0.3, 0.7))
+            
+        except Exception as e:
+            self.logger.debug(f"Error en simulación de comportamiento: {str(e)}")
+    
+    def _human_type(self, driver, element, text: str):
+        """Tipea texto con delays aleatorios entre caracteres (más humano)"""
+        element.click()
+        time.sleep(random.uniform(0.1, 0.3))
+        
+        for char in text:
+            element.send_keys(char)
+            time.sleep(random.uniform(0.05, 0.15))
+        
+        time.sleep(random.uniform(0.3, 0.6))
     
     def parse_response(self, html: str) -> Dict[str, Any]:
         # Parsear HTML y extraer información de seguros
