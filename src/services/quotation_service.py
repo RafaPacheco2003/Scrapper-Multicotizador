@@ -1,7 +1,6 @@
 """
 Servicio de Quotation
 """
-from sqlalchemy.orm import Session
 from src.repositories.quotation_repository import QuotationRepository
 from src.schemas.QuotationDetail import QuotationDetail
 from typing import Optional
@@ -9,15 +8,15 @@ from typing import Optional
 
 class QuotationService:
     """Servicio de lógica de negocio de Quotation"""
-    
-    def __init__(self, db: Session):
+
+    def __init__(self, repository: QuotationRepository):
         """
         Constructor del servicio
-        
+
         Args:
-            db: Sesión de base de datos
+            repository: Repository de cotizaciones
         """
-        self.repository = QuotationRepository(db)
+        self.repository = repository
     
     def get_quotation_by_id(self, quotation_id: str) -> Optional[QuotationDetail]:
         """

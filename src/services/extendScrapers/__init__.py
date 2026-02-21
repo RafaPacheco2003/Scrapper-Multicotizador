@@ -1,21 +1,8 @@
-from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional
+"""Patrón Strategy simple para scrapers
 
-
-class ScraperStrategy(ABC):
-    """Estrategia base para scrapers (Open/Closed Principle)"""
-    
-    @abstractmethod
-    def prepare_url(self, params: Dict[str, Any]) -> Optional[str]:
-        """Prepara la URL para el scraper"""
-        pass
-    
-    @abstractmethod
-    def get_scraper_name(self) -> str:
-        """Retorna el nombre del scraper"""
-        pass
-    
-    @abstractmethod
-    def get_base_url(self) -> str:
-        """Retorna la URL base del scraper"""
-        pass
+4 archivos:
+1. base_strategy.py - Define el contrato (ScraperStrategy abstracta)
+2. scraper_mapfre.py - Comportamiento Mapfre
+3. scraper_hdi.py - Comportamiento HDI
+4. ../scraper_service.py - Orquestador (context)
+"""

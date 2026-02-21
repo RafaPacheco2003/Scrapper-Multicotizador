@@ -4,19 +4,13 @@ from sqlalchemy import text
 
 
 class QuotationRepository:
-    """Repository para queries de Quotation"""
     
     def __init__(self, db: Session):
-        """
-        Constructor del repository
-        
-        Args:
-            db: Sesión de base de datos
-        """
+     
         self.db = db
     
     def get_by_id(self, quotation_id: str) -> Optional[Dict[str, Any]]:
-        """Obtiene cotización por ID"""
+        
         query = text("""
             SELECT 
                 q.id          AS quotation_id,

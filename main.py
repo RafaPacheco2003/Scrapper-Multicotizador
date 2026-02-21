@@ -9,7 +9,7 @@ from src.core.config import settings
 from src.api.endpoints import router
 from src.api.endpoints.heald_router import router as health_router
 from src.api.endpoints.quotation_router import router as quotation_router
-from src.kafka.kafka_consumer import start_consumer  
+from src.consumers.kafka_consumer import start_consumer  
 
 
 # Configurar logging
@@ -45,11 +45,11 @@ app.include_router(quotation_router)
 
 @app.on_event("startup")
 async def startup_event():
-    logger.info("🚀 Iniciando Kafka consumer en background...")
+    logger.info("Iniciando Kafka consumer en background...")
     consumer_thread = threading.Thread(target=start_consumer, daemon=True)
     consumer_thread.start()
-    logger.info("✅ Thread de Kafka consumer iniciado")
-    logger.info("📬 Esperando eventos del productor NestJS...")
+    logger.info("Thread de Kafka consumer iniciado")
+    logger.info("Esperando eventos del productor NestJS...")
 
 
 if __name__ == "__main__":

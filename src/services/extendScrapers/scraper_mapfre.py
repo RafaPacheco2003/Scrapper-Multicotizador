@@ -1,22 +1,19 @@
 from typing import Dict, Any, Optional
 from src.utils import URLBuilder
-from . import ScraperStrategy
+from scrapers.implementations.mapfre_scraper import mapfre_scraper
+from .base_strategy import ScraperStrategy
 
 
 class MapfreScraperStrategy(ScraperStrategy):
-    """Estrategia para Mapfre - USA URLBuilder con parámetros"""
+    """Estrategia Mapfre: construye URL dinámica con parámetros"""
     
     def __init__(self):
-        self.scraper_name = "mapfre"
-        self.base_url = "https://cotizadorautos.mapfre.com.mx"
+        super().__init__("mapfre", "https://cotizadorautos.mapfre.com.mx", mapfre_scraper)
     
     def prepare_url(self, params: Dict[str, Any]) -> Optional[str]:
-        """Construye URL con URLBuilder"""
         builder = URLBuilder(self.scraper_name)
         return builder.build(params)
-    
-    def get_scraper_name(self) -> str:
-        return self.scraper_name
-    
-    def get_base_url(self) -> str:
-        return self.base_url
+
+
+# Instancia única que se auto-registra
+MapfreScraperStrategy()

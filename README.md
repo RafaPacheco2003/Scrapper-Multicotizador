@@ -6,11 +6,11 @@ uvicorn main:app --reload --host 0.0.0.0 --port 8001
 
 API Echo para recibir y procesar datos de vehículos desde Kafka con arquitectura limpia siguiendo mejores prácticas de FastAPI y SOLID principles. Incluye sistema de web scraping modular para múltiples aseguradoras.
 
-## 🔐 CLOUDFLARE BYPASS - Solución Implementada
+## CLOUDFLARE BYPASS - Solución Implementada
 
 **IMPORTANTE**: Este proyecto incluye la solución para pasar verificaciones de Cloudflare Turnstile sin ser detectado como bot. Aquí está documentado cómo y por qué funciona.
 
-### ❌ Problemas Anteriores (Por qué No Funcionaba)
+### Problemas Anteriores (Por qué No Funcionaba)
 
 1. **User-Agent desactualizado (Chrome 120.0.0.0)**
    - Cloudflare detecta que Chrome 120 NO EXISTE en enero 2026
@@ -37,10 +37,10 @@ API Echo para recibir y procesar datos de vehículos desde Kafka con arquitectur
 ### ✅ Solución Implementada (Por qué Funciona Ahora)
 
 ```
-ANTES (❌ BLOQUEADO):
+ANTES (BLOQUEADO):
 Chrome 120 (falso) + es-MX + Sin tracking + Intento clickear = Cloudflare lo detecta
 
-AHORA (✅ PASA):
+AHORA (PASA):
 Chrome 144 (REAL) + es-GB (correcto) + Tracking permitido + NO clickear = Cloudflare cree usuario real
 ```
 
@@ -201,7 +201,7 @@ Con esto, **Cloudflare creerá que es usuario real y NO bloqueará** ✅
 │   │       ├── heald_router.py      # Health check & DB
 │   │       ├── quotation_router.py  # Quotation endpoints
 │   │       └── scraper_router.py    # Scraper endpoints
-│   └── kafka/
+│   └── consumers/
 │       └── kafka_consumer.py        # Consumer de eventos NestJS
 ├── scrapers/
 │   └── implementations/
@@ -281,11 +281,11 @@ uvicorn main:app --reload --host 0.0.0.0 --port 8001
 
 ### 7. Verificar que todo funcione
 ```
-✅ Deberías ver en consola:
+ Deberías ver en consola:
 - INFO: Uvicorn running on http://0.0.0.0:8001
-- 🚀 Iniciando Kafka consumer en background...
-- ✅ Kafka consumer conectado a localhost:9092
-- 📡 Topic: quotations-created | Group: fastapi-quotation-group
+- Iniciando Kafka consumer en background...
+- Kafka consumer conectado a localhost:9092
+- Topic: quotations-created | Group: fastapi-quotation-group
 ```
 
 ### 8. Probar endpoints

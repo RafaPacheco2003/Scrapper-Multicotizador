@@ -72,20 +72,6 @@ async def scrape_mapfre() -> ScrapeResponse:
         )
 
 
-@router.get(
-    "/health",
-    status_code=status.HTTP_200_OK,
-    summary="Health check",
-    description="Verifica el estado del servicio"
-)
-async def health_check():
-    """Health check del servicio"""
-    return {
-        "status": "healthy",
-        "service": "Web Scraping Backend",
-        "timestamp": datetime.now().isoformat()
-    }
-
 
 @router.get(
     "/scrape/hdi",
